@@ -8,11 +8,19 @@
 #include "btstack.h"
 #include "joybus.h"
 
-
+// Make sure that you update this for your controllers hardware address!
+static const uint8_t xbox_address[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // Fill that yourself
 static volatile uint32_t controller_state = 0;
 static uint8_t controller_pak[32 * 1024];
 static volatile bool rumble_on = false;
-static enum { ACC_NONE, ACC_CPAK, ACC_RPAK } accessory_inserted = ACC_RPAK;
+static enum { 
+    ACC_CONTROLLER_PAK,
+    ACC_RUMBLE_PAK,
+    ACC_TRANSFER_PAK,
+    ACC_VRU,
+    ACC_BIOMETRIC,
+    ACC_NONE
+} accessory_inserted = ACC_RUMBLE_PAK;
 
 static uint8_t __time_critical_func(joybus_callback) (uint8_t ch, uint8_t cmd, uint8_t rx_length, uint8_t *rx_buffer, uint8_t *tx_buffer) {
     uint8_t tx_length = 0;
@@ -50,11 +58,7 @@ static uint8_t __time_critical_func(joybus_callback) (uint8_t ch, uint8_t cmd, u
             if ((rx_length == 2) && joybus_check_address_crc(address_with_crc)) {
                 tx_length = 33;
                 switch (accessory_inserted) {
-                    case ACC_NONE:
-                        memset(tx_buffer, 0x00, 32);
-                        break;
-
-                    case ACC_CPAK:
+                    case ACC_CONTROLLER_PAK:
                         if (address < 32 * 1024) {
                             memcpy(tx_buffer, controller_pak + address, 32);
                         } else {
@@ -62,8 +66,13 @@ static uint8_t __time_critical_func(joybus_callback) (uint8_t ch, uint8_t cmd, u
                         }
                         break;
 
-                    case ACC_RPAK:
+                    case ACC_RUMBLE_PAK:
                         memset(tx_buffer, (address & 0xC000) == 0x8000 ? 0x80 : 0x00, 32);
+                        break;
+
+                    case ACC_NONE:
+                    default:
+                        memset(tx_buffer, 0x00, 32);
                         break;
                 }
                 tx_buffer[32] = joybus_calculate_data_crc(tx_buffer);
@@ -73,19 +82,20 @@ static uint8_t __time_critical_func(joybus_callback) (uint8_t ch, uint8_t cmd, u
         case JOYBUS_CMD_WRITE:
             if ((rx_length == 34) && joybus_check_address_crc(address_with_crc)) {
                 switch (accessory_inserted) {
-                    case ACC_NONE:
-                        break;
-
-                    case ACC_CPAK:
+                    case ACC_CONTROLLER_PAK:
                         if (address < 32 * 1024) {
                             memcpy(controller_pak + address, rx_buffer + 2, 32);
                         }
                         break;
 
-                    case ACC_RPAK:
+                    case ACC_RUMBLE_PAK:
                         if ((address & 0xC000) == 0xC000) {
                             rumble_on = rx_buffer[33] & 0x01;
                         }
+                        break;
+
+                    case ACC_NONE:
+                    default:
                         break;
                 }
 
@@ -241,9 +251,9 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
         if (tmp_state & (1 << 26)) { // DD
             accessory_inserted = ACC_NONE;
         } else if (tmp_state & (1 << 25)) { // DL
-            accessory_inserted = ACC_RPAK;
+            accessory_inserted = ACC_RUMBLE_PAK;
         } else if (tmp_state & (1 << 24)) { // DR
-            accessory_inserted = ACC_CPAK;
+            accessory_inserted = ACC_CONTROLLER_PAK;
         }
 
         controller_state = 0;
@@ -282,8 +292,6 @@ static void handle_gatt_client_event(uint8_t packet_type, uint16_t channel, uint
     }
 }
 
-
-static const uint8_t xbox_address[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // Fill that yourself
 
 static void hci_packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     if (packet_type != HCI_EVENT_PACKET) {
