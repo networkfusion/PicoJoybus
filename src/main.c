@@ -152,33 +152,33 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
                     case 0x32: // Z
                         tmp_value = value - 0x8000;
                         if (tmp_value < -0x3FFF) {
-                            tmp_state |= (1 << 17); // CL
+                            tmp_state |= (1 << 17); // C-Left
                         }
                         if (tmp_value > 0x3FFF) {
-                            tmp_state |= (1 << 16); // CR
+                            tmp_state |= (1 << 16); // C-Right
                         }
                         break;
                     case 0x35: // Rz
                         tmp_value = value - 0x8000;
                         if (tmp_value < -0x3FFF) {
-                            tmp_state |= (1 << 19); // CU
+                            tmp_state |= (1 << 19); // C-Up
                         }
                         if (tmp_value > 0x3FFF) {
-                            tmp_state |= (1 << 18); // CD
+                            tmp_state |= (1 << 18); // C-Down
                         }
                         break;
                     case 0x39: // Hat Switch
                         if (value == 8 || value == 1 || value == 2) {
-                            tmp_state |= (1 << 27); // DU
+                            tmp_state |= (1 << 27); // D-Up
                         }
                         if (value == 2 || value == 3 || value == 4) {
-                            tmp_state |= (1 << 24); // DR
+                            tmp_state |= (1 << 24); // D-Right
                         }
                         if (value == 4 || value == 5 || value == 6) {
-                            tmp_state |= (1 << 26); // DD
+                            tmp_state |= (1 << 26); // D-Down
                         }
                         if (value == 6 || value == 7 || value == 8) {
-                            tmp_state |= (1 << 25); // DL
+                            tmp_state |= (1 << 25); // D-Left
                         }
                         break;
                 }
@@ -205,19 +205,19 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
                         tmp_state |= (value << 31); // A
                         break;
                     case 0x02: // B
-                        tmp_state |= (value << 18); // CD
+                        tmp_state |= (value << 18); // C-Down
                         break;
                     case 0x04: // X
                         tmp_state |= (value << 30); // B
                         break;
                     case 0x05: // Y
-                        tmp_state |= (value << 19); // CU
+                        tmp_state |= (value << 19); // C-Up
                         break;
                     case 0x07: // L
-                        tmp_state |= (value << 17); // CL
+                        tmp_state |= (value << 17); // C-Left
                         break;
                     case 0x08: // R
-                        tmp_state |= (value << 16); // CR
+                        tmp_state |= (value << 16); // C-Right
                         break;
                     case 0x0B: // Option
                         tmp_state |= (value << 28); // Start
@@ -225,7 +225,7 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
                     case 0x0C: // Menu
                         tmp_state |= (value << 28); // Start
                         break;
-                    case 0x0D: // XBOX
+                    case 0x0D: // XBOX Button
                         // N64RGB reset combination (A + B + Z + Start + R)
                         tmp_state |= value ? ((1 << 31) | (1 << 30) | (1 << 29) | (1 << 28) | (1 << 20)) : 0;
                         break;
@@ -248,11 +248,11 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
     }
 
     if (configuration_mode) {
-        if (tmp_state & (1 << 26)) { // DD
+        if (tmp_state & (1 << 26)) { // D-Down
             accessory_inserted = ACC_NONE;
-        } else if (tmp_state & (1 << 25)) { // DL
+        } else if (tmp_state & (1 << 25)) { // D-Left
             accessory_inserted = ACC_RUMBLE_PAK;
-        } else if (tmp_state & (1 << 24)) { // DR
+        } else if (tmp_state & (1 << 24)) { // D-Right
             accessory_inserted = ACC_CONTROLLER_PAK;
         }
 
@@ -436,6 +436,7 @@ static uint8_t fb_off[8] = {
 int main (void) {
     stdio_init_all();
 
+    // We only handle one controller on GPIO28, this can be used on any controller port.
     uint joybus_pins[1] = { 28 };
     joybus_init(pio1, 1, joybus_pins, joybus_callback);
 
