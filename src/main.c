@@ -220,7 +220,7 @@ static void hid_handle_input_report (uint8_t service_index, const uint8_t *repor
                         tmp_state |= (value << 16); // C-Right
                         break;
                     case 0x0B: // Option
-                        tmp_state |= (value << 28); // Start
+                        tmp_state |= (value << 21); // L
                         break;
                     case 0x0C: // Menu
                         tmp_state |= (value << 28); // Start
